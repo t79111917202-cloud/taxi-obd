@@ -5,27 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Такси-Монитор Смены</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 15px; background: #f7fafc; color: #1a202c; }
-        .btn-start { background: #3182ce; color: white; border: none; padding: 16px; border-radius: 10px; font-size: 18px; font-weight: bold; width: 100%; cursor: pointer; box-shadow: 0 4px 6px rgba(49,130,206,0.2); }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 8px; background: #f7fafc; color: #1a202c; font-size: 14px; }
+        .btn-start { background: #3182ce; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; box-shadow: 0 2px 4px rgba(49,130,206,0.2); }
         .btn-start:disabled { background: #cbd5e0; box-shadow: none; color: #4a5568; }
-        .btn-reset { background: #e53e3e; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: bold; width: 100%; cursor: pointer; margin-top: 15px; }
-        .card { background: white; padding: 20px; border-radius: 14px; margin-top: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.04); }
-        h3 { margin: 0 0 15px 0; color: #4a5568; font-size: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-        .metric-box { background: #edf2f7; padding: 15px; border-radius: 10px; text-align: center; }
-        .metric-label { font-size: 13px; color: #718096; margin-bottom: 5px; }
-        .metric-value { font-size: 24px; font-weight: bold; color: #2b6cb0; }
+        .btn-reset { background: #e53e3e; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 14px; font-weight: bold; width: 100%; cursor: pointer; margin-top: 10px; }
+        .card { background: white; padding: 12px; border-radius: 10px; margin-top: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
+        h3 { margin: 0 0 10px 0; color: #4a5568; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .metric-box { background: #edf2f7; padding: 10px; border-radius: 8px; text-align: center; }
+        .metric-label { font-size: 11px; color: #718096; margin-bottom: 2px; }
+        .metric-value { font-size: 20px; font-weight: bold; color: #2b6cb0; }
         .metric-value.highlight { color: #38a169; }
-        .row-param { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #edf2f7; font-size: 16px; }
+        .row-param { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #edf2f7; font-size: 15px; }
         .row-param:last-child { border: none; }
         .time-val { font-weight: bold; color: #4a5568; }
         
-        .fuel-price-container { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e0; }
-        .fuel-price-label { font-size: 15px; color: #4a5568; }
-        .fuel-price-input { width: 90px; padding: 6px 10px; font-size: 16px; border: 2px solid #cbd5e0; border-radius: 6px; font-weight: bold; text-align: center; color: #2d3748; }
+        .fuel-price-container { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e0; }
+        .fuel-price-label { font-size: 14px; color: #4a5568; }
+        .fuel-price-input { width: 75px; padding: 4px 6px; font-size: 15px; border: 2px solid #cbd5e0; border-radius: 5px; font-weight: bold; text-align: center; color: #2d3748; }
         .fuel-price-input:focus { border-color: #3182ce; outline: none; }
         
-        #log { font-family: monospace; font-size: 11px; background: #1a202c; color: #cbd5e0; padding: 10px; border-radius: 8px; max-height: 90px; overflow-y: auto; margin-top: 15px; }
+        #log { font-family: monospace; font-size: 10px; background: #1a202c; color: #cbd5e0; padding: 8px; border-radius: 6px; max-height: 60px; overflow-y: auto; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -33,7 +33,6 @@
     <button id="connectBtn" class="btn-start">НАЧАТЬ СМЕНУ (ОБД)</button>
 
     <div class="card">
-        <h3>Экономика смены</h3>
         <div class="main-grid">
             <div class="metric-box">
                 <div class="metric-label">ПРОБЕГ ЗА СМЕНУ</div>
@@ -45,39 +44,39 @@
             </div>
         </div>
         
-        <div class="row-param" style="border-top: 1px solid #edf2f7; padding-top: 15px;">
-            <span>Стоимость топлива за смену:</span>
-            <span id="shiftFuelCost" class="time-val" style="color: #e53e3e; font-size: 18px;">0.00 руб</span>
+        <div class="row-param" style="border-top: 1px solid #edf2f7; padding-top: 8px;">
+            <span>Стоимость топлива:</span>
+            <span id="shiftFuelCost" class="time-val" style="color: #e53e3e; font-size: 16px;">0.00 руб</span>
         </div>
         
         <div class="fuel-price-container">
-            <span class="fuel-price-label">Цена литра топлива:</span>
+            <span class="fuel-price-label">Цена литра:</span>
             <div>
                 <input type="number" id="fuelPriceInput" class="fuel-price-input" step="0.01" placeholder="00.00">
-                <span style="font-weight: bold; margin-left: 3px;">руб.</span>
+                <span style="font-weight: bold; margin-left: 2px;">руб.</span>
             </div>
         </div>
     </div>
 
     <div class="card">
-        <h3>Учет времени и моточасов</h3>
+        <h3>Учет моточасов</h3>
         <div class="row-param">
             <span>Общие моточасы:</span>
-            <span id="totalTime" class="time-val" style="color: #2b6cb0; font-size: 18px;">00 ч 00 мин</span>
+            <span id="totalTime" class="time-val" style="color: #2b6cb0; font-size: 16px;">00 ч 00 мин</span>
         </div>
         <div class="row-param">
             <span>• В движении:</span>
             <span id="driveTime" class="time-val">00 ч 00 мин</span>
         </div>
         <div class="row-param">
-            <span>• Без движения (простой):</span>
+            <span>• Простой (ХХ):</span>
             <span id="idleTime" class="time-val">00 ч 00 мин</span>
         </div>
     </div>
 
     <button id="resetBtn" class="btn-reset">ЗАВЕРШИТЬ И СБРОСИТЬ СМЕНУ</button>
 
-    <div id="log">Система готова к запуску...</div>
+    <div id="log">Система готова...</div>
 
     <script>
         let bluetoothDevice = null;
@@ -119,10 +118,10 @@
             try {
                 if ('wakeLock' in navigator) {
                     wakeLock = await navigator.wakeLock.request('screen');
-                    log("Режим энергосбережения заблокирован.");
+                    log("Энергосбережение заблокировано.");
                 }
             } catch (err) {
-                log("Предупреждение WakeLock: " + err.message);
+                log("WakeLock: " + err.message);
             }
         }
 
@@ -143,7 +142,7 @@
                 await obdCharacteristic.startNotifications();
                 obdCharacteristic.addEventListener('characteristicvaluechanged', handleResponse);
 
-                log("Инициализация ELM327...");
+                log("Инициализация...");
                 connectBtn.disabled = true;
                 connectBtn.innerText = "СМЕНА СЧИТЫВАЕТСЯ";
 
@@ -236,10 +235,10 @@
 
             if (fuelLitersPerHour < 0.1) return;
 
-            if (speedKmh > 2) { totalDriveSec += dt;
+            if (speedKmh > 2) {
+                totalDriveSec += dt;
                 distanceKm += (speedKmh * (dt / 3600)); 
-            } else {
-                totalIdleSec += dt;
+            } else { totalIdleSec += dt;
             }
 
             fuelLitres += (fuelLitersPerHour * (dt / 3600));
@@ -282,7 +281,7 @@
                 document.getElementById('driveTime').innerText = "00 ч 00 мин";
                 document.getElementById('idleTime').innerText = "00 ч 00 мин";
                 
-                log("Данные смены сброшены. Цена топлива сохранена.");
+                log("Данные смены сброшены.");
             }
         });
 
