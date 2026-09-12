@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Такси-Монитор Смены</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 15px; background: #f7fafc; color: #1a202c; }
+        .btn-start { background: #3182ce; color: white; border: none; padding: 16px; border-radius: 10px; font-size: 18px; font-weight: bold; width: 100%; cursor: pointer; box-shadow: 0 4px 6px rgba(49,130,206,0.2); }
+        .btn-start:disabled { background: #cbd5e0; box-shadow: none; color: #4a5568; }
+        .btn-reset { background: #e53e3e; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: bold; width: 100%; cursor: pointer; margin-top: 15px; }
+        .card { background: white; padding: 20px; border-radius: 14px; margin-top: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.04); }
+        h3 { margin: 0 0 15px 0; color: #4a5568; font-size: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .metric-box { background: #edf2f7; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-label { font-size: 13px; color: #718096; margin-bottom: 5px; }
+        .metric-value { font-size: 24px; font-weight: bold; color: #2b6cb0; }
+        .metric-value.highlight { color: #38a169; }
+        .row-param { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #edf2f7; font-size: 16px; }
+        .row-param:last-child { border: none; }
+        .time-val { font-weight: bold; color: #4a5568; }
+        
+        .fuel-price-container { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e0; }
+        .fuel-price-label { font-size: 15px; color: #4a5568; }
+        .fuel-price-input { width: 90px; padding: 6px 10px; font-size: 16px; border: 2px solid #cbd5e0; border-radius: 6px; font-weight: bold; text-align: center; color: #2d3748; }
+        .fuel-price-input:focus { border-color: #3182ce; outline: none; }
+        
+        #log { font-family: monospace; font-size: 11px; background: #1a202c; color: #cbd5e0; padding: 10px; border-radius: 8px; max-height: 90px; overflow-y: auto; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <button id="connectBtn" class="btn-start">НАЧАТЬ СМЕНУ (ОБД)</button>
+
+    <div class="card">
+        <h3>Экономика смены</h3>
+        <div class="main-grid">
+            <div class="metric-box">
+                <div class="metric-label">ПРОБЕГ ЗА СМЕНУ</div>
+                <div id="shiftDistance" class="metric-value highlight">0.0 км</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-label">РАСХОД ТОПЛИВА</div>
+                <div id="shiftFuel" class="metric-value highlight">0.00 л</div>
+            </div>
+        </div>
+        
+        <div class="row-param" style="border-top: 1px solid #edf2f7; padding-top: 15px;">
+            <span>Стоимость топлива за смену:</span>
+            <span id="shiftFuelCost" class="time-val" style="color: #e53e3e; font-size: 18px;">0.00 руб</span>
+        </div>
+        
+        <div class="fuel-price-container">
+            <span class="fuel-price-label">Цена литра топлива:</span>
+            <div>
+                <input type="number" id="fuelPriceInput" class="fuel-price-input" step="0.01" placeholder="00.00">
+                <span style="font-weight: bold; margin-left: 3px;">руб.</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Учет времени и моточасов</h3>
+        <div class="row-param">
+            <span>Общие моточасы:</span>
+            <span id="totalTime" class="time-val" style="color: #2b6cb0; font-size: 18px;">00 ч 00 мин</span>
+        </div>
+        <div class="row-param">
+            <span>• В движении:</span>
+            <span id="driveTime" class="time-val">00 ч 00 мин</span>
+        </div>
+        <div class="row-param">
+            <span>• Без движения (простой):</span>
+            <span id="idleTime" class="time-val">00 ч 00 мин</span>
+        </div>
+    </div>
+
+    <button id="resetBtn" class="btn-reset">ЗАВЕРШИТЬ И СБРОСИТЬ СМЕНУ</button>
+
+    <div id="log">Система готова к запуску...</div>
+
+    <script>
+        let bluetoothDevice = null;
+        let obdCharacteristic = null;
+        let wakeLock = null; 
+        
+        let totalDriveSec = 0;
+        let totalIdleSec = 0;
+        let distanceKm = 0;
+        let fuelLitres = 0;
+        
+        let lastTickTime = null;
+        let useMAF = false; 
+        
+        const M_UUID = "00001101-0000-1000-8000-00805f9b34fb";
+        const connectBtn = document.getElementById('connectBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const priceInput = document.getElementById('fuelPriceInput');
+        const logDiv = document.getElementById('log');
+
+        function log(msg) {
+            logDiv.innerHTML += `<br>[${new Date().toLocaleTimeString()}] ${msg}`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedPrice = localStorage.getItem('taxi_fuel_price');
+            if (savedPrice) {
+                priceInput.value = parseFloat(savedPrice).toFixed(2);
+            }
+        });
+
+        priceInput.addEventListener('input', () => {
+            localStorage.setItem('taxi_fuel_price', priceInput.value);
+            updateCostDisplay();
+        });
+
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    log("Режим энергосбережения заблокирован.");
+                }
+            } catch (err) {
+                log("Предупреждение WakeLock: " + err.message);
+            }
+        }
+
+        connectBtn.addEventListener('click', async () => {
+            try {
+                log("Поиск OBD-сканера...");
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: 'OBD' }, { namePrefix: 'ELM' }],
+                    optionalServices: [M_UUID]
+                });
+
+                log("Подключение...");
+                const server = await bluetoothDevice.gatt.connect();
+                const service = await server.getPrimaryService(M_UUID);
+                const characteristics = await service.getCharacteristics();
+                obdCharacteristic = characteristics[0]; 
+
+                await obdCharacteristic.startNotifications();
+                obdCharacteristic.addEventListener('characteristicvaluechanged', handleResponse);
+
+                log("Инициализация ELM327...");
+                connectBtn.disabled = true;
+                connectBtn.innerText = "СМЕНА СЧИТЫВАЕТСЯ";
+
+                await requestWakeLock();
+
+                await sendCmd("ATZ\r");      
+                await sendCmd("ATE0\r");     
+                await sendCmd("ATSP0\r");    
+
+                lastTickTime = Date.now();
+                setInterval(cycleQuery, 2000);
+
+            } catch (err) {
+                log("Сбой: " + err);
+            }
+        });
+
+        async function sendCmd(cmd) {
+            if (!obdCharacteristic) return;
+            await obdCharacteristic.writeValue(new TextEncoder().encode(cmd));
+        }
+
+        let buffer = "";
+        function handleResponse(event) {
+            buffer += new TextDecoder().decode(event.target.value);
+            if (buffer.includes(">")) {
+                parseOBD(buffer.replace(/>/g, "").trim());
+                buffer = "";
+            }
+        }
+
+        function cycleQuery() {
+            sendCmd("010D\r"); 
+            setTimeout(() => {
+                if (useMAF) {
+                    sendCmd("0110\r"); 
+                } else {
+                    sendCmd("015E\r"); 
+                }
+            }, 800);
+        }
+
+        let speedKmh = 0;
+        let fuelLitersPerHour = 0;
+
+        function parseOBD(data) {
+            if (data.startsWith("41 0D")) {
+                let parts = data.split(" ");
+                if(parts.length > 2) {
+                    speedKmh = parseInt(parts[2], 16);
+                    updateCalculations(speedKmh, null);
+                }
+            }
+            
+            if (data.startsWith("41 5E")) {
+                let parts = data.split(" ");
+                if(parts.length > 3) {
+                    let hi = parseInt(parts[2], 16);
+                    let lo = parseInt(parts[3], 16);
+                    fuelLitersPerHour = ((hi * 256) + lo) * 0.05;
+                    updateCalculations(null, fuelLitersPerHour);
+                }
+            }
+            
+            if (data.startsWith("41 10")) {
+                let parts = data.split(" ");
+                if(parts.length > 3) {
+                    let hi = parseInt(parts[2], 16);
+                    let lo = parseInt(parts[3], 16);
+                    let mafGps = ((hi * 256) + lo) / 100; 
+                    fuelLitersPerHour = (mafGps * 3600) / (14.7 * 745); 
+                    updateCalculations(null, fuelLitersPerHour);
+                }
+            }
+
+            if (data.includes("NO DATA") && !useMAF) {
+                log("PID 5E недоступен. Переключение на MAF...");
+                useMAF = true;
+            }
+        }
+
+        function updateCalculations(v, f) {
+            let now = Date.now();
+            if (!lastTickTime) { lastTickTime = now; return; }
+            let dt = (now - lastTickTime) / 1000; 
+            lastTickTime = now;
+
+            if (v !== null) speedKmh = v;
+            if (f !== null) fuelLitersPerHour = f;
+
+            if (fuelLitersPerHour < 0.1) return;
+
+            if (speedKmh > 2) { totalDriveSec += dt;
+                distanceKm += (speedKmh * (dt / 3600)); 
+            } else {
+                totalIdleSec += dt;
+            }
+
+            fuelLitres += (fuelLitersPerHour * (dt / 3600));
+
+            document.getElementById('shiftDistance').innerText = distanceKm.toFixed(1) + " км";
+            document.getElementById('shiftFuel').innerText = fuelLitres.toFixed(2) + " л";
+            
+            updateCostDisplay();
+
+            document.getElementById('totalTime').innerText = formatHM(totalDriveSec + totalIdleSec);
+            document.getElementById('driveTime').innerText = formatHM(totalDriveSec);
+            document.getElementById('idleTime').innerText = formatHM(totalIdleSec);
+        }
+
+        function updateCostDisplay() {
+            const price = parseFloat(priceInput.value) || 0;
+            const cost = fuelLitres * price;
+            document.getElementById('shiftFuelCost').innerText = cost.toFixed(2) + " руб";
+        }
+
+        function formatHM(seconds) {
+            let h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+            let m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+            return `${h} ч ${m} мин`;
+        }
+
+        resetBtn.addEventListener('click', () => {
+            if (confirm("Вы уверены, что хотите завершить смену и сбросить все метрики?")) {
+                totalDriveSec = 0;
+                totalIdleSec = 0;
+                distanceKm = 0;
+                fuelLitres = 0;
+                speedKmh = 0;
+                fuelLitersPerHour = 0;
+                
+                document.getElementById('shiftDistance').innerText = "0.0 км";
+                document.getElementById('shiftFuel').innerText = "0.00 л";
+                document.getElementById('shiftFuelCost').innerText = "0.00 руб";
+                document.getElementById('totalTime').innerText = "00 ч 00 мин";
+                document.getElementById('driveTime').innerText = "00 ч 00 мин";
+                document.getElementById('idleTime').innerText = "00 ч 00 мин";
+                
+                log("Данные смены сброшены. Цена топлива сохранена.");
+            }
+        });
+
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        });
+    </script>
+</body>
+</html>
